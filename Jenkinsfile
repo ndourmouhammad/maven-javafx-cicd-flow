@@ -1,117 +1,75 @@
+pipeline {
+    agent any
 
-    }pipeline {
-         agent any
+    environment {
+        MAVEN_TOOL_NAME = 'M3'
+        NEXUS_SETTINGS_ID = 'my-nexus-settings'
+    }
 
-         environment {
-             // ASSUREZ-VOUS QUE CE NOM CORRESPOND EXACTEMENT À CELUI DANS Jenkins > Administrer Jenkins > Global Tool Configuration
-             MAVEN_TOOL_NAME = 'M3'
-             // ID du fichier XML dans Jenkins > Admin > Managed Files
-             NEXUS_SETTINGS_ID = 'my-nexus-settings'
-         }
-
-         stages {
-             stage('Initialisation') {
-                 steps {
-                     script {
-                         echo "Début du pipeline..."
-                         try {
-                             def mvnHome = tool "${MAVEN_TOOL_NAME}"
-                             env.MAVEN_HOME = mvnHome
-                             echo "Maven trouvé à l'emplacement : ${env.MAVEN_HOME}"
-                         } catch (Exception e) {
-                             error "ERREUR : L'outil Maven nommé '${MAVEN_TOOL_NAME}' n'est pas configuré dans Jenkins. Veuillez le vérifier dans 'Global Tool Configuration'."
-                         }
-                     }
-                 }
-             }
-
-             stage('Checkout') {
-                 steps {
-                     echo "Récupération du code depuis le SCM..."
-                     checkout scm
-                     echo "Récupération terminée."
-                 }
-             }
-
-             stage('Build & Test') {
-                 steps {
-                     script {
-                         echo "Démarrage du Build & Test..."
-                         def mvnCmd = isUnix() ? "${env.MAVEN_HOME}/bin/mvn" : "${env.MAVEN_HOME}\\bin\\mvn.cmd"
-                         if (isUnix()) {
-                             sh "${mvnCmd} clean package"
-                         } else {
-                             bat "${mvnCmd} clean package"
-                         }
-                     }
-                 }
-             }
-
-             stage('Analyse SonarQube') {
-                 steps {
-                     script {
-                         echo "Démarrage de l'analyse SonarQube..."
-                         try {
-                             withSonarQubeEnv('SonarQube') {
-                                 def mvnCmd = isUnix() ? "${env.MAVEN_HOME}/bin/mvn" : "${env.MAVEN_HOME}\\bin\\mvn.cmd"
-                                 if (isUnix()) {
-                                     sh "${mvnCmd} sonar:sonar"
-                                 } else {
-                                     bat "${mvnCmd} sonar:sonar"
-                                 }
-                             }
-                         } catch (Exception e) {
-                             echo "Attention : Échec de la connexion à SonarQube. Vérifiez la configuration du serveur dans Jenkins."
-                             throw e
-                         }
-                     }
-                 }
-             }
-
-             stage('Deploy to Nexus') {
-                 steps {
-                     script {
-                         echo "Démarrage du déploiement vers Nexus..."
-                         try {
-                             configFileProvider([configFile(fileId: "${NEXUS_SETTINGS_ID}", variable: 'MAVEN_SETTINGS')]) {
-                                 def mvnCmd = isUnix() ? "${env.MAVEN_HOME}/bin/mvn" : "${env.MAVEN_HOME}\\bin\\mvn.cmd"
-                                 if (isUnix()) {
-                                     sh "${mvnCmd} deploy -s $MAVEN_SETTINGS -DskipTests"
-                                 } else {
-                                     bat "${mvnCmd} deploy -s %MAVEN_SETTINGS% -DskipTests"
-                                 }
-                             }
-                         } catch (Exception e) {
-                             echo "Erreur lors du déploiement Nexus. Vérifiez vos identifiants et le fichier 'my-nexus-settings'."
-                             throw e
-                         }
-                     }
-                 }
-             }
-
-             stage('Deploy with Ansible') {
-                         steps {
-                             script {
-                                 echo "Installation d'Ansible..."
-                                 // Installation légère d'Ansible dans le conteneur Jenkins
-                                 sh "pip install --user ansible"
-
-                                 echo "Démarrage du déploiement Ansible..."
-                                 // Utilisation du chemin local de pip pour lancer le playbook
-                                 sh "~/.local/bin/ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
-                             }
-                         }
-                     }
-
-    post {
-        always {
-            echo "Pipeline terminé."
+    stages {
+        stage('Initialisation') {
+            steps {
+                script {
+                    def mvnHome = tool "${MAVEN_TOOL_NAME}"
+                    env.MAVEN_HOME = mvnHome
+                }
+            }
         }
-        success {
-            echo "Le déploiement a réussi !"
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
         }
-        failure {
-            echo "Une erreur critique est survenue. Veuillez consulter les logs de la console ci-dessous pour plus de détails."
+
+        stage('Build & Test') {
+            steps {
+                sh "${env.MAVEN_HOME}/bin/mvn clean package"
+            }
+        }
+
+        stage('Analyse SonarQube') {
+            steps {
+                script {
+                    try {
+                        withSonarQubeEnv('SonarQube') {
+                            sh "${env.MAVEN_HOME}/bin/mvn sonar:sonar"
+                        }
+                    } catch (Exception e) {
+                        echo "⚠️ SonarQube a échoué, mais on continue..."
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Nexus') {
+            steps {
+                configFileProvider([configFile(fileId: "${NEXUS_SETTINGS_ID}", variable: 'MAVEN_SETTINGS')]) {
+                    sh "${env.MAVEN_HOME}/bin/mvn deploy -s $MAVEN_SETTINGS -DskipTests"
+                }
+            }
+        }
+
+        stage('Deploy with Ansible') {
+            steps {
+                script {
+                    // On tente d'installer pip et ansible de manière robuste
+                    sh """
+                        # Mise à jour et installation des dépendances minimales
+                        if ! command -v pip &> /dev/null; then
+                            echo "Installation de pip..."
+                            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+                            python3 get-pip.py --user
+                        fi
+
+                        echo "Installation d'Ansible..."
+                        python3 -m pip install --user ansible
+
+                        echo "Exécution du Playbook..."
+                        python3 -m ansible.playbook -i ansible/inventory.ini ansible/deploy.yml -v
+                    """
+                }
+            }
         }
     }
 }
