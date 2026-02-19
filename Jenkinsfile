@@ -11,22 +11,35 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main',
-                    credentialsId: 'github-ssh',
-                    url: 'https://github.com/ndourmouhammad/maven-javafx-cicd-flow.git'
+                // Jenkins récupère automatiquement le code si configuré via SCM (Github)
+                checkout scm
             }
         }
 
         stage('Build & Test') {
             steps {
-                sh "${MAVEN_HOME}/bin/mvn clean package"
+                script {
+                    def mvnCmd = isUnix() ? "${MAVEN_HOME}/bin/mvn" : "${MAVEN_HOME}\\bin\\mvn.cmd"
+                    if (isUnix()) {
+                        sh "${mvnCmd} clean package"
+                    } else {
+                        bat "${mvnCmd} clean package"
+                    }
+                }
             }
         }
 
         stage('Analyse SonarQube') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh "${MAVEN_HOME}/bin/mvn sonar:sonar"
+                    script {
+                        def mvnCmd = isUnix() ? "${MAVEN_HOME}/bin/mvn" : "${MAVEN_HOME}\\bin\\mvn.cmd"
+                        if (isUnix()) {
+                            sh "${mvnCmd} sonar:sonar"
+                        } else {
+                            bat "${mvnCmd} sonar:sonar"
+                        }
+                    }
                 }
             }
         }
@@ -34,15 +47,40 @@ pipeline {
         stage('Deploy to Nexus') {
             steps {
                 configFileProvider([configFile(fileId: "${NEXUS_SETTINGS_ID}", variable: 'MAVEN_SETTINGS')]) {
-                    sh "${MAVEN_HOME}/bin/mvn deploy -s $MAVEN_SETTINGS -DskipTests"
+                    script {
+                        def mvnCmd = isUnix() ? "${MAVEN_HOME}/bin/mvn" : "${MAVEN_HOME}\\bin\\mvn.cmd"
+                        if (isUnix()) {
+                            sh "${mvnCmd} deploy -s $MAVEN_SETTINGS -DskipTests"
+                        } else {
+                            bat "${mvnCmd} deploy -s %MAVEN_SETTINGS% -DskipTests"
+                        }
+                    }
                 }
             }
         }
 
         stage('Deploy with Ansible') {
             steps {
-                sh "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
+                script {
+                    if (isUnix()) {
+                        sh "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
+                    } else {
+                        bat "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
+                    }
+                }
             }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline terminé."
+        }
+        success {
+            echo "Le déploiement a réussi !"
+        }
+        failure {
+            echo "Une erreur est survenue pendant le pipeline."
         }
     }
 }
