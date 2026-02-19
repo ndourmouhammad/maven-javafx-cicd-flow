@@ -20,20 +20,24 @@
         state: directory
         mode: '0755'
 
-    - name: Pull latest artifact from Nexus
-      get_url:
-        url: "{{ nexus_url }}/{{ artifact_path }}"
-        dest: "{{ app_dest }}/app.jar"
-        force: yes
-        url_username: "admin"
-        url_password: "pass123"
-        validate_certs: no
-        timeout: 60
+    - name: Pull latest artifact from Nexus (REST API)
+      shell: |
+        curl -L -k -u admin:pass123 \
+        "{{ nexus_url }}/service/rest/v1/search/assets/download?repository=maven-snapshots&maven.groupId=sn.mouhammad.isi&maven.artifactId=candidats&maven.extension=jar&sort=version" \
+        -o "{{ app_dest }}/app.jar"
       register: download_result
+
+    - name: Verify downloaded file
+      shell: "file {{ app_dest }}/app.jar"
+      register: file_info
+
+    - name: Debug file info
+      debug:
+        var: file_info.stdout
 
     - name: Debug download status
       debug:
-        msg: "Le fichier a été téléchargé dans {{ download_result.dest }}"
+        msg: "Le fichier a été téléchargé dans {{ app_dest }}/app.jar"
 
     - name: Remove existing container if it exists
       docker_container:
