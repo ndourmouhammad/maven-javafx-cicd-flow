@@ -7,6 +7,12 @@
     app_dest: "/opt/app"
 
   tasks:
+    - name: Ensure SSH host key is accepted
+      command: ssh-keyscan -H {{ ansible_host | default(inventory_hostname) }} >> ~/.ssh/known_hosts
+      delegate_to: localhost
+      become: no
+      run_once: yes
+
     - name: Install dependencies
       apt:
         name: [python3-docker, ca-certificates]

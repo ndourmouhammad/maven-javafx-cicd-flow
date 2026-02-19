@@ -42,20 +42,15 @@ pipeline {
             }
         }
 
-        stage('Deploy with Ansible') {
+        stage('Setup SSH Host Key') {
             steps {
-                // 'ec2-ssh-key' est l'ID que l'on voit sur ta capture d'écran Jenkins
-                sshagent(['ec2-ssh-key']) {
-                    sh """
-                        # On désactive la vérification au niveau d'Ansible
-                        export ANSIBLE_HOST_KEY_CHECKING=False
-
-                        ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
-                        -u ubuntu \
-                        --ssh-common-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' \
-                        -v
-                    """
-                }
+                sh '''
+                    # Ajouter le serveur aux known_hosts
+                    mkdir -p ~/.ssh
+                    ssh-keyscan -H 13.62.126.153 >> ~/.ssh/known_hosts
+                    # Vérifier la connexion SSH
+                    ssh -o StrictHostKeyChecking=accept-new user@13.62.126.154 "echo SSH connection OK"
+                '''
             }
         }
     }
