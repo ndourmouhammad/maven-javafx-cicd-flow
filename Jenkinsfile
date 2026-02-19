@@ -50,22 +50,26 @@ pipeline {
 
     post {
         always {
-            // Utilisation du script block pour sécuriser le contexte JUnit
-            script {
-                try {
-                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
-                } catch (Exception e) {
-                    echo "Erreur lors de la récupération des tests: ${e.message}"
+            // On force l'utilisation d'un node pour avoir accès au système de fichiers
+            node {
+                script {
+                    try {
+                        // Lecture des tests avec tolérance si vide
+                        junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                    } catch (Exception e) {
+                        echo "Avertissement JUnit : ${e.message}"
+                    }
+                    
+                    // Nettoyage de l'espace de travail (FilePath requis)
+                    cleanWs()
                 }
             }
-            // On nettoie l'espace de travail seulement à la fin
-            cleanWs()
         }
         success {
-            echo '🚀 Pipeline terminé avec succès ! L\'application est déployée.'
+            echo '🚀 Pipeline terminé avec succès !'
         }
         failure {
-            echo '❌ Le pipeline a échoué. Vérifiez les logs.'
+            echo '❌ Le pipeline a échoué.'
         }
     }
 }
