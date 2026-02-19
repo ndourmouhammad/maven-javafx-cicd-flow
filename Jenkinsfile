@@ -42,15 +42,12 @@ pipeline {
             }
         }
 
-        stage('Setup SSH Host Key') {
+        stage('Deploy with Ansible') {
             steps {
-                sh '''
-                    # Ajouter le serveur aux known_hosts
-                    mkdir -p ~/.ssh
-                    ssh-keyscan -H 13.62.126.153 >> ~/.ssh/known_hosts
-                    # Vérifier la connexion SSH
-                    ssh -o StrictHostKeyChecking=accept-new user@13.62.126.154 "echo SSH connection OK"
-                '''
+                // C'est ICI que Jenkins injecte la clé privée dans la session
+                sshagent(['ec2-ssh-key']) {
+                    sh "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -u ubuntu -v"
+                }
             }
         }
     }
