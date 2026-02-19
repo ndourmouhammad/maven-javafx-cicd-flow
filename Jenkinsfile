@@ -47,9 +47,11 @@ pipeline {
                 // 'ec2-ssh-key' est l'ID que tu as donné dans Jenkins Credentials
                 sshagent(['ec2-ssh-key']) {
                     sh """
+                        # Désactive la vérification stricte de la clé d'hôte au niveau de SSH
+                        export ANSIBLE_HOST_KEY_CHECKING=False
                         ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
                         -u ubuntu \
-                        -e "ansible_ssh_common_args='-o StrictHostKeyChecking=no'" \
+                        --extra-vars "ansible_ssh_common_args='-o StrictHostKeyChecking=no'" \
                         -v
                     """
                 }
