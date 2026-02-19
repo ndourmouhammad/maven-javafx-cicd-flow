@@ -2,19 +2,18 @@ pipeline {
     agent any
 
     environment {
-        // Doit correspondre au nom configuré dans "Global Tool Configuration"
+        // Vérifie dans Jenkins > Admin > Tools que le nom est exactement celui-ci
         MAVEN_HOME = tool 'maven-3.9.12'
-        // Identifiant du fichier settings.xml dans "Managed Files"
+        // Vérifie dans Jenkins > Admin > Managed Files que l'ID est celui-ci
         NEXUS_SETTINGS_ID = 'my-nexus-settings'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Remplace par ton vrai dépôt
                 git branch: 'main',
                     credentialsId: 'github-ssh',
-                    url: 'git@github.com:ton-pseudo/ton-repo.git'
+                    url: 'https://github.com/ndourmouhammad/maven-javafx-cicd-flow.git'
             }
         }
 
@@ -26,7 +25,7 @@ pipeline {
 
         stage('Analyse SonarQube') {
             steps {
-                // 'SonarQube' doit correspondre au nom dans Configurer le système
+                // Le nom 'SonarQube' doit exister dans la config système de Jenkins
                 withSonarQubeEnv('SonarQube') {
                     sh "${MAVEN_HOME}/bin/mvn sonar:sonar"
                 }
@@ -43,7 +42,7 @@ pipeline {
 
         stage('Deploy with Ansible') {
             steps {
-                // -v permet d'avoir plus de détails en cas d'erreur de connexion
+                // Ansible doit être installé sur le serveur où tourne Jenkins
                 sh "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
             }
         }
@@ -51,16 +50,12 @@ pipeline {
 
     post {
         always {
-            // On réalloue un contexte node pour éviter l'erreur MissingContextVariableException
-            node {
-                script {
-                    try {
-                        junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
-                    } catch (Exception e) {
-                        echo "Avertissement JUnit : ${e.message}"
-                    }
-                    // Nettoyage obligatoire dans un contexte node
-                    cleanWs()
+            script {
+                // On utilise une gestion d'erreur simple pour éviter que le nettoyage ne bloque tout
+                try {
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                } catch (e) {
+                    echo "Pas de rapports de tests trouvés ou erreur JUnit."
                 }
             }
         }
@@ -68,7 +63,7 @@ pipeline {
             echo '🚀 Pipeline terminé avec succès !'
         }
         failure {
-            echo '❌ Le pipeline a échoué. Vérifiez les logs des stages précédents.'
+            echo '❌ Le pipeline a échoué. Regardez les logs du stage en rouge.'
         }
     }
 }
