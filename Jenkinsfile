@@ -46,20 +46,10 @@ pipeline {
             steps {
                 sshagent(['ec2-ssh-key']) {
                     sh """
-                        # Create .ssh directory if it doesn't exist
-                        mkdir -p ~/.ssh
-                        chmod 700 ~/.ssh
-
-                        # Scan the host key to avoid interactive prompt (Robust method)
-                        ssh-keyscan -H 13.62.126.153 >> ~/.ssh/known_hosts 2>/dev/null || true
-
-                        # Set environment variable to disable host key checking
                         export ANSIBLE_HOST_KEY_CHECKING=False
-
-                        # Run playbook with strict host key checking disabled in SSH arguments
                         ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
                         -u ubuntu \
-                        --extra-vars "ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" \
+                        --ssh-common-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' \
                         -v
                     """
                 }

@@ -1,16 +1,15 @@
 - name: Deploy Java Application with Docker
-  hosts: [server_prod]
+  hosts: server_prod
   become: yes
   vars:
-    # IMPORTANT : Remplace par ton IP publique ou 'host.docker.internal' si tunnel SSH
     nexus_url: "https://proanarchy-easton-stertorously.ngrok-free.dev"
     artifact_path: "repository/maven-snapshots/sn/mouhammad/isi/candidats/1.0-SNAPSHOT/candidats-1.0-SNAPSHOT.jar"
     app_dest: "/opt/app"
 
   tasks:
-    - name: Install python3-docker (Fix for externally-managed-environment)
+    - name: Install dependencies
       apt:
-        name: python3-docker
+        name: [python3-docker, ca-certificates]
         state: present
         update_cache: yes
 
@@ -25,11 +24,11 @@
         url: "{{ nexus_url }}/{{ artifact_path }}"
         dest: "{{ app_dest }}/app.jar"
         force: yes
-        # Identifiants Nexus (admin par défaut)
         url_username: "admin"
         url_password: "pass123"
+        validate_certs: no  # Important si ngrok utilise un certificat auto-signé
 
-    - name: Remove existing container if it exists
+    - name: Remove existing container
       docker_container:
         name: java_app
         state: absent
@@ -39,11 +38,10 @@
         name: java_app
         image: eclipse-temurin:17-jre-alpine
         state: started
-        restart: yes
+        restart_policy: always
         published_ports:
           - "8080:8080"
         volumes:
           - "{{ app_dest }}/app.jar:/app/app.jar"
-        # On définit le répertoire de travail pour que java trouve le jar
         working_dir: /app
         command: java -jar app.jar
