@@ -53,33 +53,20 @@ pipeline {
         stage('Deploy with Ansible') {
             steps {
                 script {
-                    echo "🚀 Tentative d'exécution d'Ansible..."
+                    // On tente d'installer pip et ansible de manière robuste
                     sh """
-                        # On s'assure que python3 et pip sont là
-                        if ! command -v python3 &> /dev/null; then
-                            echo "❌ Python3 n'est pas installé sur cet agent Jenkins."
-                            exit 1
+                        # Mise à jour et installation des dépendances minimales
+                        if ! command -v pip &> /dev/null; then
+                            echo "Installation de pip..."
+                            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+                            python3 get-pip.py --user
                         fi
 
-                        # Installation/Mise à jour d'Ansible dans l'espace utilisateur
-                        python3 -m pip install --user --upgrade pip
+                        echo "Installation d'Ansible..."
                         python3 -m pip install --user ansible
 
-                        # On récupère le chemin exact des binaires de l'utilisateur
-                        USER_BASE=\$(python3 -m site --user-base)
-                        BIN_PATH="\$USER_BASE/bin"
-                        
-                        echo "🔍 Dossier des binaires : \$BIN_PATH"
-                        ls -F "\$BIN_PATH" || echo "⚠️ Le dossier \$BIN_PATH est vide ou inaccessible"
-
-                        # On ajoute explicitement ce dossier au PATH pour ce shell
-                        export PATH="\$PATH:\$BIN_PATH"
-
-                        echo "🔍 Vérification de la version d'Ansible :"
-                        "\$BIN_PATH/ansible" --version || ansible --version
-
-                        echo "🎬 Exécution du Playbook..."
-                        "\$BIN_PATH/ansible-playbook" -i ansible/inventory.ini ansible/deploy.yml -v || ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v
+                        echo "Exécution du Playbook..."
+                        python3 -m ansible.playbook -i ansible/inventory.ini ansible/deploy.yml -v
                     """
                 }
             }
