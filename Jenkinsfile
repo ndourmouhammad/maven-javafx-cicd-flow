@@ -53,20 +53,26 @@ pipeline {
         stage('Deploy with Ansible') {
             steps {
                 script {
-                    // On tente d'installer pip et ansible de manière robuste
+                    echo "🚀 Tentative d'exécution d'Ansible..."
                     sh """
-                        # Mise à jour et installation des dépendances minimales
-                        if ! command -v pip &> /dev/null; then
-                            echo "Installation de pip..."
-                            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-                            python3 get-pip.py --user
+                        # On s'assure que python3 et pip sont là
+                        if ! command -v python3 &> /dev/null; then
+                            echo "❌ Python3 n'est pas installé sur cet agent Jenkins."
+                            exit 1
                         fi
 
-                        echo "Installation d'Ansible..."
+                        # Installation/Mise à jour d'Ansible dans l'espace utilisateur
+                        python3 -m pip install --user --upgrade pip
                         python3 -m pip install --user ansible
 
-                        echo "Exécution du Playbook..."
-                        python3 -m ansible.playbook -i ansible/inventory.ini ansible/deploy.yml -v
+                        # Ajout du chemin des binaires local de python au PATH
+                        export PATH=\$PATH:\$(python3 -m site --user-base)/bin
+
+                        echo "🔍 Vérification de la version d'Ansible :"
+                        ansible --version
+
+                        echo "🎬 Exécution du Playbook..."
+                        ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v
                     """
                 }
             }
