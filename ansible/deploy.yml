@@ -1,0 +1,18 @@
+- name: Deploy Java Application with Docker
+  hosts: web_servers
+  tasks:
+    - name: Pull latest artifacts from Nexus
+      get_url:
+        url: "http://nexus:8081/repository/maven-releases/sn/mouhammad/isi/candidats/1.0-SNAPSHOT/candidats-1.0-SNAPSHOT.jar"
+        dest: "/opt/app/app.jar"
+        force: yes
+
+    - name: Restart application container
+      docker_container:
+        name: java_app
+        image: eclipse-temurin:17-jre-alpine
+        state: started
+        restart: yes
+        volumes:
+          - /opt/app/app.jar:/app/app.jar
+        command: java -jar /app/app.jar
