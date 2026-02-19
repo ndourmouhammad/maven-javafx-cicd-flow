@@ -44,9 +44,12 @@ pipeline {
 
         stage('Deploy with Ansible') {
             steps {
+                // 'ec2-ssh-key' est l'ID que l'on voit sur ta capture d'écran Jenkins
                 sshagent(['ec2-ssh-key']) {
                     sh """
+                        # On désactive la vérification au niveau d'Ansible
                         export ANSIBLE_HOST_KEY_CHECKING=False
+
                         ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
                         -u ubuntu \
                         --ssh-common-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' \
