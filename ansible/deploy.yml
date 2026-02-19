@@ -1,5 +1,5 @@
 - name: Deploy Java Application with Docker
-  hosts: web_servers
+  hosts: [server_prod]
   become: yes
   vars:
     # IMPORTANT : Remplace par ton IP publique ou 'host.docker.internal' si tunnel SSH
