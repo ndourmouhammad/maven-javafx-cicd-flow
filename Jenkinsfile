@@ -2,18 +2,19 @@ pipeline {
     agent any
 
     environment {
-        // Vérifie bien que le nom 'maven-3.9.12' est EXACTEMENT le même dans "Global Tool Configuration"
+        // Doit correspondre au nom configuré dans "Global Tool Configuration"
         MAVEN_HOME = tool 'maven-3.9.12'
+        // Identifiant du fichier settings.xml dans "Managed Files"
         NEXUS_SETTINGS_ID = 'my-nexus-settings'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Remplace bien 'votre-pseudo/votre-repo' par tes vraies infos
+                // Remplace par ton vrai dépôt
                 git branch: 'main',
                     credentialsId: 'github-ssh',
-                    url: 'git@github.com:ndourmouhammad/maven-javafx-cicd-flow.git'
+                    url: 'git@github.com:ton-pseudo/ton-repo.git'
             }
         }
 
@@ -25,7 +26,7 @@ pipeline {
 
         stage('Analyse SonarQube') {
             steps {
-                // 'SonarQube' doit correspondre au nom dans Jenkins > Configurer le système
+                // 'SonarQube' doit correspondre au nom dans Configurer le système
                 withSonarQubeEnv('SonarQube') {
                     sh "${MAVEN_HOME}/bin/mvn sonar:sonar"
                 }
@@ -42,7 +43,7 @@ pipeline {
 
         stage('Deploy with Ansible') {
             steps {
-                // Ajout de -v pour voir les erreurs détaillées d'Ansible en cas de souci
+                // -v permet d'avoir plus de détails en cas d'erreur de connexion
                 sh "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
             }
         }
@@ -50,17 +51,15 @@ pipeline {
 
     post {
         always {
-            // On force l'utilisation d'un node pour avoir accès au système de fichiers
+            // On réalloue un contexte node pour éviter l'erreur MissingContextVariableException
             node {
                 script {
                     try {
-                        // Lecture des tests avec tolérance si vide
                         junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
                     } catch (Exception e) {
                         echo "Avertissement JUnit : ${e.message}"
                     }
-                    
-                    // Nettoyage de l'espace de travail (FilePath requis)
+                    // Nettoyage obligatoire dans un contexte node
                     cleanWs()
                 }
             }
@@ -69,7 +68,7 @@ pipeline {
             echo '🚀 Pipeline terminé avec succès !'
         }
         failure {
-            echo '❌ Le pipeline a échoué.'
+            echo '❌ Le pipeline a échoué. Vérifiez les logs des stages précédents.'
         }
     }
 }
