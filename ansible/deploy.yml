@@ -1,14 +1,14 @@
 - name: Deploy Java Application with Docker
-  hosts: [server_prod]
+  hosts: server_prod
   become: yes
   vars:
-    # IMPORTANT : Remplace par ton IP publique ou 'host.docker.internal' si tunnel SSH
     nexus_url: "https://proanarchy-easton-stertorously.ngrok-free.dev"
+    # Chemin direct vers l'artefact pour éviter les erreurs 404 de l'API de recherche
     artifact_path: "repository/maven-snapshots/sn/mouhammad/isi/candidats/1.0-SNAPSHOT/candidats-1.0-SNAPSHOT.jar"
     app_dest: "/opt/app"
 
   tasks:
-    - name: Install python3-docker (Fix for externally-managed-environment)
+    - name: Install python3-docker
       apt:
         name: python3-docker
         state: present
@@ -21,8 +21,19 @@
         mode: '0755'
 
     - name: Pull latest artifact from Nexus
-      shell: |
-        curl -u "admin:pass123" -k -L -o "{{ app_dest }}/app.jar" "{{ nexus_url }}/service/rest/v1/search/assets/download?repository=maven-snapshots&maven.groupId=sn.mouhammad.isi&maven.artifactId=candidats&maven.baseVersion=1.0-SNAPSHOT&maven.extension=jar"
+      get_url:
+        url: "{{ nexus_url }}/{{ artifact_path }}"
+        dest: "{{ app_dest }}/app.jar"
+        force: yes
+        url_username: "admin"
+        url_password: "pass123"
+        validate_certs: no
+        timeout: 60
+      register: download_result
+
+    - name: Debug download status
+      debug:
+        msg: "Le fichier a été téléchargé dans {{ download_result.dest }}"
 
     - name: Remove existing container if it exists
       docker_container:
@@ -34,11 +45,24 @@
         name: java_app
         image: eclipse-temurin:17-jre-alpine
         state: started
-        restart: yes
+        restart_policy: always
         published_ports:
           - "8080:8080"
         volumes:
           - "{{ app_dest }}/app.jar:/app/app.jar"
-        # On définit le répertoire de travail pour que java trouve le jar
         working_dir: /app
-        command: java -jar app.jar
+        # -Djava.awt.headless=true est crucial pour JavaFX sur un serveur sans écran
+        # Cela évite que la JVM cherche une interface graphique inexistante
+        command: java -Djava.awt.headless=true -jar app.jar
+
+    - name: Wait for container to stabilize
+      pause:
+        seconds: 5
+
+    - name: Check container status
+      command: docker ps -f name=java_app
+      register: docker_status
+
+    - name: Display container status
+      debug:
+        var: docker_status.stdout_lines
