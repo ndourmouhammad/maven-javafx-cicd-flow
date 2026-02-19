@@ -52,6 +52,7 @@ pipeline {
                         ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
                         -u ubuntu \
                         --private-key=${SSH_KEY} \
+                        --ssh-common-args='-o StrictHostKeyChecking=no -o PubkeyAcceptedAlgorithms=+ssh-rsa' \
                         -v
                     """
                 }
