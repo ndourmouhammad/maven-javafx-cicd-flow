@@ -44,14 +44,18 @@ pipeline {
 
         stage('Deploy with Ansible') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                // 'ec2-ssh-key' est l'ID de ton credential Jenkins
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'PRIVATE_KEY')]) {
                     sh """
-                        chmod 400 ${SSH_KEY}
+                        # On protège la clé (obligatoire pour SSH)
+                        chmod 400 ${PRIVATE_KEY}
+
+                        # On force Ansible à ignorer la vérification et à utiliser cette clé précise
                         export ANSIBLE_HOST_KEY_CHECKING=False
 
                         ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
                         -u ubuntu \
-                        --private-key=${SSH_KEY} \
+                        --private-key=${PRIVATE_KEY} \
                         --ssh-common-args='-o StrictHostKeyChecking=no -o PubkeyAcceptedAlgorithms=+ssh-rsa' \
                         -v
                     """
