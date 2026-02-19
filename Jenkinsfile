@@ -16,16 +16,10 @@ pipeline {
             }
         }
 
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
+        stage('Checkout') { steps { checkout scm } }
 
         stage('Build & Test') {
-            steps {
-                sh "${env.MAVEN_HOME}/bin/mvn clean package"
-            }
+            steps { sh "${env.MAVEN_HOME}/bin/mvn clean package" }
         }
 
         stage('Analyse SonarQube') {
@@ -35,9 +29,7 @@ pipeline {
                         withSonarQubeEnv('SonarQube') {
                             sh "${env.MAVEN_HOME}/bin/mvn sonar:sonar"
                         }
-                    } catch (Exception e) {
-                        echo "⚠️ SonarQube a échoué, mais on continue..."
-                    }
+                    } catch (e) { echo "SonarQube échoué, on continue..." }
                 }
             }
         }
@@ -52,23 +44,8 @@ pipeline {
 
         stage('Deploy with Ansible') {
             steps {
-                script {
-                    // On tente d'installer pip et ansible de manière robuste
-                    sh """
-                        # Mise à jour et installation des dépendances minimales
-                        if ! command -v pip &> /dev/null; then
-                            echo "Installation de pip..."
-                            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-                            python3 get-pip.py --user
-                        fi
-
-                        echo "Installation d'Ansible..."
-                        python3 -m pip install --user ansible
-
-                        echo "Exécution du Playbook..."
-                        python3 -m ansible.playbook -i ansible/inventory.ini ansible/deploy.yml -v
-                    """
-                }
+                // Maintenant que Ansible est sur le serveur, cette commande fonctionnera !
+                sh "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
             }
         }
     }
