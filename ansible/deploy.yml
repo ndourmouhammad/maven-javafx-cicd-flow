@@ -1,18 +1,50 @@
+---
 - name: Deploy Java Application with Docker
   hosts: web_servers
-  tasks:
-    - name: Pull latest artifacts from Nexus
-      get_url:
-        url: "http://nexus:8081/repository/maven-releases/sn/mouhammad/isi/candidats/1.0-SNAPSHOT/candidats-1.0-SNAPSHOT.jar"
-        dest: "/opt/app/app.jar"
-        force: yes
+  become: yes
+  vars:
+    # IMPORTANT : Remplace par ton IP publique ou 'host.docker.internal' si tunnel SSH
+    nexus_url: "https://proanarchy-easton-stertorously.ngrok-free.dev"
+    artifact_path: "repository/maven-snapshots/sn/mouhammad/isi/candidats/1.0-SNAPSHOT/candidats-1.0-SNAPSHOT.jar"
+    app_dest: "/opt/app"
 
-    - name: Restart application container
+  tasks:
+    - name: Install python3-docker (Fix for externally-managed-environment)
+      apt:
+        name: python3-docker
+        state: present
+        update_cache: yes
+
+    - name: Ensure destination directory exists
+      file:
+        path: "{{ app_dest }}"
+        state: directory
+        mode: '0755'
+
+    - name: Pull latest artifact from Nexus
+      get_url:
+        url: "{{ nexus_url }}/{{ artifact_path }}"
+        dest: "{{ app_dest }}/app.jar"
+        force: yes
+        # Identifiants Nexus (admin par défaut)
+        url_username: "admin"
+        url_password: "pass123"
+
+    - name: Remove existing container if it exists
+      docker_container:
+        name: java_app
+        state: absent
+
+    - name: Start application container
       docker_container:
         name: java_app
         image: eclipse-temurin:17-jre-alpine
         state: started
         restart: yes
+        published_ports:
+          - "8080:8080"
         volumes:
-          - /opt/app/app.jar:/app/app.jar
-        command: java -jar /app/app.jar
+          - "{{ app_dest }}/app.jar:/app/app.jar"
+        # On définit le répertoire de travail pour que java trouve le jar
+        working_dir: /app
+        command: java -jar app.jar
