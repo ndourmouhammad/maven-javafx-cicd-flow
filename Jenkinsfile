@@ -44,15 +44,11 @@ pipeline {
 
         stage('Deploy with Ansible') {
             steps {
-                // Cette fonction extrait ta clé privée dans un fichier temporaire
-                // 'ec2-ssh-key' doit être l'ID exact dans Jenkins
-                // 'SSH_KEY' est le nom de la variable qui contiendra le chemin du fichier
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                        # On s'assure que le fichier de clé a les bonnes permissions
                         chmod 400 ${SSH_KEY}
+                        export ANSIBLE_HOST_KEY_CHECKING=False
 
-                        # On lance Ansible en pointant directement sur ce fichier de clé
                         ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
                         -u ubuntu \
                         --private-key=${SSH_KEY} \
