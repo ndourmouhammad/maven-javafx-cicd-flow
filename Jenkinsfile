@@ -65,14 +65,21 @@ pipeline {
                         python3 -m pip install --user --upgrade pip
                         python3 -m pip install --user ansible
 
-                        # Ajout du chemin des binaires local de python au PATH
-                        export PATH=\$PATH:\$(python3 -m site --user-base)/bin
+                        # On récupère le chemin exact des binaires de l'utilisateur
+                        USER_BASE=\$(python3 -m site --user-base)
+                        BIN_PATH="\$USER_BASE/bin"
+                        
+                        echo "🔍 Dossier des binaires : \$BIN_PATH"
+                        ls -F "\$BIN_PATH" || echo "⚠️ Le dossier \$BIN_PATH est vide ou inaccessible"
+
+                        # On ajoute explicitement ce dossier au PATH pour ce shell
+                        export PATH="\$PATH:\$BIN_PATH"
 
                         echo "🔍 Vérification de la version d'Ansible :"
-                        ansible --version
+                        "\$BIN_PATH/ansible" --version || ansible --version
 
                         echo "🎬 Exécution du Playbook..."
-                        ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v
+                        "\$BIN_PATH/ansible-playbook" -i ansible/inventory.ini ansible/deploy.yml -v || ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v
                     """
                 }
             }
