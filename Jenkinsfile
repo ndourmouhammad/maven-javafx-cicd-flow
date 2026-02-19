@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // ASSUREZ-VOUS QUE CE NOM CORRESPOND EXACTEMENT À CELUI DANS Jenkins > Administrer Jenkins > Global Tool Configuration
-        MAVEN_TOOL_NAME = 'maven-3.9.12'
+        MAVEN_TOOL_NAME = 'M3'
         // ID du fichier XML dans Jenkins > Admin > Managed Files
         NEXUS_SETTINGS_ID = 'my-nexus-settings'
     }
