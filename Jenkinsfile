@@ -43,10 +43,10 @@ pipeline {
         }
 
         stage('Deploy with Ansible') {
-            steps {
-                // Maintenant que Ansible est sur le serveur, cette commande fonctionnera !
-                sh "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
-            }
-        }
+                    steps {
+                        // On ajoute ANSIBLE_HOST_KEY_CHECKING=False pour être 100% sûr que ça ne bloque pas
+                        sh "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
+                    }
+                }
     }
 }
