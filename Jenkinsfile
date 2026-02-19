@@ -2,15 +2,16 @@ pipeline {
     agent any
 
     environment {
-        // Vérifie dans Jenkins > Admin > Tools que le nom est exactement celui-ci
+        // Doit correspondre au nom dans Jenkins > Admin > Tools
         MAVEN_HOME = tool 'maven-3.9.12'
-        // Vérifie dans Jenkins > Admin > Managed Files que l'ID est celui-ci
+        // ID du fichier XML dans Jenkins > Admin > Managed Files
         NEXUS_SETTINGS_ID = 'my-nexus-settings'
     }
 
     stages {
         stage('Checkout') {
             steps {
+                // Jenkins récupère le code depuis ton repo
                 git branch: 'main',
                     credentialsId: 'github-ssh',
                     url: 'https://github.com/ndourmouhammad/maven-javafx-cicd-flow.git'
@@ -19,13 +20,14 @@ pipeline {
 
         stage('Build & Test') {
             steps {
+                // Compilation du projet Java
                 sh "${MAVEN_HOME}/bin/mvn clean package"
             }
         }
 
         stage('Analyse SonarQube') {
             steps {
-                // Le nom 'SonarQube' doit exister dans la config système de Jenkins
+                // 'SonarQube' doit être configuré dans Jenkins > Système
                 withSonarQubeEnv('SonarQube') {
                     sh "${MAVEN_HOME}/bin/mvn sonar:sonar"
                 }
@@ -34,6 +36,7 @@ pipeline {
 
         stage('Deploy to Nexus') {
             steps {
+                // Envoi du JAR vers ton Nexus local via Ngrok
                 configFileProvider([configFile(fileId: "${NEXUS_SETTINGS_ID}", variable: 'MAVEN_SETTINGS')]) {
                     sh "${MAVEN_HOME}/bin/mvn deploy -s $MAVEN_SETTINGS -DskipTests"
                 }
@@ -42,7 +45,7 @@ pipeline {
 
         stage('Deploy with Ansible') {
             steps {
-                // Ansible doit être installé sur le serveur où tourne Jenkins
+                // Déploiement Docker sur l'EC2
                 sh "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
             }
         }
@@ -51,19 +54,19 @@ pipeline {
     post {
         always {
             script {
-                // On utilise une gestion d'erreur simple pour éviter que le nettoyage ne bloque tout
                 try {
+                    // Archive les résultats de tests pour l'affichage graphique
                     junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
                 } catch (e) {
-                    echo "Pas de rapports de tests trouvés ou erreur JUnit."
+                    echo "Avertissement : Aucun test trouvé ou erreur JUnit."
                 }
             }
         }
         success {
-            echo '🚀 Pipeline terminé avec succès !'
+            echo '🚀 Pipeline terminé avec succès ! L\'application est sur l\'EC2.'
         }
         failure {
-            echo '❌ Le pipeline a échoué. Regardez les logs du stage en rouge.'
+            echo '❌ Le pipeline a échoué. Vérifiez les logs du stage rouge.'
         }
     }
 }
