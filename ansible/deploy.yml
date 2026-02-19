@@ -21,13 +21,8 @@
         mode: '0755'
 
     - name: Pull latest artifact from Nexus
-      get_url:
-        url: "{{ nexus_url }}/{{ artifact_path }}"
-        dest: "{{ app_dest }}/app.jar"
-        force: yes
-        # Identifiants Nexus (admin par défaut)
-        url_username: "admin"
-        url_password: "pass123"
+      shell: |
+        curl -u "admin:pass123" -k -L -o "{{ app_dest }}/app.jar" "{{ nexus_url }}/service/rest/v1/search/assets/download?repository=maven-snapshots&maven.groupId=sn.mouhammad.isi&maven.artifactId=candidats&maven.baseVersion=1.0-SNAPSHOT&maven.extension=jar"
 
     - name: Remove existing container if it exists
       docker_container:
