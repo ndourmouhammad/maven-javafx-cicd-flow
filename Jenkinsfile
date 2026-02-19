@@ -43,10 +43,17 @@ pipeline {
         }
 
         stage('Deploy with Ansible') {
-                    steps {
-                        // On ajoute ANSIBLE_HOST_KEY_CHECKING=False pour être 100% sûr que ça ne bloque pas
-                        sh "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
-                    }
+            steps {
+                // 'ec2-ssh-key' doit correspondre exactement à l'ID de tes credentials Jenkins
+                sshagent(['ec2-ssh-key']) {
+                    sh """
+                        ANSIBLE_HOST_KEY_CHECKING=False \
+                        ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
+                        -u ubuntu \
+                        -v
+                    """
                 }
+            }
+        }
     }
 }
