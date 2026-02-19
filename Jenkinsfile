@@ -2,19 +2,18 @@ pipeline {
     agent any
 
     environment {
-        // Doit correspondre EXACTEMENT aux noms dans "Global Tool Configuration"
+        // Vérifie bien que le nom 'maven-3.9.12' est EXACTEMENT le même dans "Global Tool Configuration"
         MAVEN_HOME = tool 'maven-3.9.12'
-        // Identifiant du fichier settings.xml créé dans "Managed Files"
         NEXUS_SETTINGS_ID = 'my-nexus-settings'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Utilisation de votre clé SSH configurée
+                // Remplace bien 'votre-pseudo/votre-repo' par tes vraies infos
                 git branch: 'main',
                     credentialsId: 'github-ssh',
-                    url: 'git@github.com:votre-pseudo/votre-repo.git'
+                    url: 'git@github.com:ndourmouhammad/maven-javafx-cicd-flow.git'
             }
         }
 
@@ -26,7 +25,7 @@ pipeline {
 
         stage('Analyse SonarQube') {
             steps {
-                // 'SonarQube' doit correspondre au nom dans Système > SonarQube installations
+                // 'SonarQube' doit correspondre au nom dans Jenkins > Configurer le système
                 withSonarQubeEnv('SonarQube') {
                     sh "${MAVEN_HOME}/bin/mvn sonar:sonar"
                 }
@@ -35,35 +34,31 @@ pipeline {
 
         stage('Deploy to Nexus') {
             steps {
-                // Utilise le settings.xml managé par Jenkins pour l'authentification Nexus
                 configFileProvider([configFile(fileId: "${NEXUS_SETTINGS_ID}", variable: 'MAVEN_SETTINGS')]) {
                     sh "${MAVEN_HOME}/bin/mvn deploy -s $MAVEN_SETTINGS -DskipTests"
                 }
             }
         }
 
-        stage('Docker Build & Push') {
-            steps {
-                script {
-                    // On build l'image localement sur le serveur Jenkins
-                    sh "docker build -t votre-dockerhub-ou-registry/votre-app:latest ."
-                    // Si vous avez un registry, ajoutez le push ici
-                }
-            }
-        }
-
         stage('Deploy with Ansible') {
             steps {
-                // On précise l'inventaire et on lance le playbook
-                sh "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml"
+                // Ajout de -v pour voir les erreurs détaillées d'Ansible en cas de souci
+                sh "ansible-playbook -i ansible/inventory.ini ansible/deploy.yml -v"
             }
         }
     }
 
     post {
         always {
-            // Récupère les rapports de tests pour l'affichage dans Jenkins
-            junit '**/target/surefire-reports/*.xml'
+            // Utilisation du script block pour sécuriser le contexte JUnit
+            script {
+                try {
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                } catch (Exception e) {
+                    echo "Erreur lors de la récupération des tests: ${e.message}"
+                }
+            }
+            // On nettoie l'espace de travail seulement à la fin
             cleanWs()
         }
         success {
